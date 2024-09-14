@@ -1,4 +1,5 @@
 use clap::Parser;
+use zxcvbn;
 
 mod prelude;
 use prelude::*;
@@ -115,6 +116,24 @@ fn main() -> Result<()> {
         .with_confirmation("Confirm password", "Passwords do not match")
         .interact()
         .unwrap();
+
+    let fmt_dur = |d: std::time::Duration| {
+        let years = d.as_secs_f64() / 60.0 / 60.0 / 24.0 / 365.25;
+        if years > 1000. {
+            return format!("{}ky", (years / 100.).round() / 10.);
+        } else {
+            let d = round_duration(d, std::time::Duration::from_secs(60 * 60 * 24));
+            humantime::format_duration(d).to_string()
+        }
+    };
+
+    let zxcvbn = zxcvbn::zxcvbn(&password, &[]).unwrap();
+    log::warn!("Password strength: {}", zxcvbn.score());
+    log::warn!("Password guesses to crack: {}", zxcvbn.guesses());
+    log::warn!("Password crack time with 10k cores: {}",
+        fmt_dur(*args.time_limit * (zxcvbn.guesses() / 10_000 / 10) as u32));
+    log::warn!("Password suggestions: {:?}", zxcvbn.feedback());
+    ensure!(zxcvbn.score() >= 3, "Password is too weak");
 
     let cipher = Cipher::new(&mnemonic, password.clone(), args.threads)?;
 
