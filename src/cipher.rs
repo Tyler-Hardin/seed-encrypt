@@ -20,9 +20,7 @@
 mod params {
     pub const ARGON2_MEM_COST: u32         = 2 * 1024 * 1024;   // 2 GiB (units of 1KiB)
     pub const ARGON2_TIME_COST_INIT: u32   = 10;
-    pub const BALLOON_MEM_COST: u32        = 4 * 1024 * 1024;   // 2 GiB (units of 512B)
-    pub const BALLOON_TIME_COST_INIT: u32  = 3;
-    pub const BALLOON_THREADS_DEFAULT: u32 = 2;
+    pub const DEFAULT_THREADS: u32         = 16;
 }
 
 pub const _1SEC: Duration = Duration::from_secs(1);
@@ -67,8 +65,7 @@ pub struct Cipher {
     password: String,
     entropy: [u8; 32],
     argon2_time_cost: u32,
-    balloon_time_cost: u32,
-    balloon_threads: u32,
+    threads: u32,
     last_result: [u8; 32],
     round: u32,
 }
@@ -88,8 +85,7 @@ impl Cipher {
             password,
             entropy,
             argon2_time_cost: params::ARGON2_TIME_COST_INIT,
-            balloon_time_cost: params::BALLOON_TIME_COST_INIT,
-            balloon_threads: threads.unwrap_or(params::BALLOON_THREADS_DEFAULT),
+            threads: threads.unwrap_or(params::DEFAULT_THREADS),
             last_result: [0u8; 32],
             round: 0,
         })
@@ -105,67 +101,37 @@ impl Cipher {
     }
 
     fn do_argon2_hash(&mut self) -> Result<()> {
-        use argon2::*;
+        use argon2_kdf::*;
 
         let start = Instant::now();
 
-        let argon_params = Params::new(
-            params::ARGON2_MEM_COST,
-            self.argon2_time_cost,
-            1,
-            Some(32)
-            ).map_err(|e| anyhow::anyhow!("failed to create argon2 params: {e}"))?;
+        let argon2_hash = Hasher::default()
+            .algorithm(Algorithm::Argon2id)
+            .hash_length(32)
+            .salt_length(SALT.len().try_into()?)
+            .custom_salt(*SALT)
+            .iterations(self.argon2_time_cost)
+            .memory_cost_kib(params::ARGON2_MEM_COST)
+            .threads(self.threads)
+            .hash(self.get_hash_input().as_slice())?;
 
-        let argon_hasher = Argon2::new(Algorithm::Argon2id, Version::V0x13, argon_params);
-
-        argon_hasher.hash_password_into(
-            self.get_hash_input().as_slice(),
-            *SALT,
-            &mut self.last_result
-            ).map_err(|e| anyhow::anyhow!("argon2 failed to hash password: {e}"))?;
+        assert_eq!(argon2_hash.as_bytes().len(), self.last_result.len());
+        self.last_result.copy_from_slice(argon2_hash.as_bytes());
 
         log::trace!("Argon2 hash took {:?}", round_duration(start.elapsed(), _1SEC));
         Ok(())
     }
 
-    fn do_balloon_hash(&mut self) -> Result<()> {
-        use balloon_hash::*;
-
-        let start = Instant::now();
-
-        let balloon_params = Params::new(
-            params::BALLOON_MEM_COST,
-            self.balloon_time_cost,
-            self.balloon_threads)
-            .map_err(|e| anyhow!("failed to create balloon params: {e}"))?;
-
-        let balloon_hasher = Balloon::<sha2::Sha256>::new(
-            Algorithm::BalloonM,
-            balloon_params,
-            None);
-
-        balloon_hasher.hash_into(
-            self.get_hash_input().as_slice(),
-            *SALT,
-            &mut self.last_result)
-            .map_err(|e| anyhow!("balloon failed to hash password: {e}"))?;
-
-        log::trace!("Balloon hash took {:?}", round_duration(start.elapsed(), _1SEC));
-        Ok(())
-    }
-
     fn next_key(&mut self) -> Result<aes::Aes256> {
-        use sha2::digest::KeyInit;
+        use aes::cipher::KeyInit;
 
         self.do_argon2_hash()?;
-        self.do_balloon_hash()?;
 
         let cipher = aes::Aes256::new_from_slice(&self.last_result[0..32])
             .context("failed to create cipher")?;
 
         self.round += 1;
         self.argon2_time_cost = (self.argon2_time_cost * 2).max(self.argon2_time_cost + 1);
-        self.balloon_time_cost = (self.balloon_time_cost * 2).max(self.balloon_time_cost + 1);
 
         Ok(cipher)
     }
