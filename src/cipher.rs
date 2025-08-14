@@ -47,21 +47,16 @@ static SALT: LazyLock<&[u8]> = LazyLock::new(|| {
 
 
 /// The cipher generator. We generate keys for encrypting and decrypting the key by recursively
-/// hashing the password with Argon2 and Balloon, increasing the time cost of each until the
-/// target duration is reached.
+/// hashing the password with Argon2, increasing the time cost of each until the target duration
+/// is reached.
 ///
 /// We hash the password+salt with Argon2.
-///
-/// Then use the output as a secret for Balloon<Sha256> and concatenate the Argon2 output to the
-/// password before hashing with Balloon.
 ///
 /// If the runtime has been long enough, the user can use the most recent result to encrypt the
 /// key with AES-256.
 ///
-/// If the run time has not been long enough, we increase the time cost of Argon2 and Balloon and
-/// try again.
+/// If the run time has not been long enough, we increase the time cost and try again.
 pub struct Cipher {
-    // key: Mnemonic,
     password: String,
     entropy: [u8; 32],
     argon2_time_cost: u32,
@@ -81,7 +76,6 @@ impl Cipher {
         };
 
         Ok(Self {
-            // key,
             password,
             entropy,
             argon2_time_cost: params::ARGON2_TIME_COST_INIT,
