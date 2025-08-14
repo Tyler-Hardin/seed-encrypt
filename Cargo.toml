@@ -8,9 +8,11 @@ aes = { version = "0.8.4", features = ["zeroize"] }
 anyhow = { version = "1.*", features = ["backtrace"] }
 argon2-kdf = "1.5.2"
 bip39 = { version = "2.*", features = ["all-languages", "zeroize"] }
+bs58 = "0.5"
 clap = { version = "4.*", features = ["derive"] }
 dialoguer = { version = "0.*", default-features = false, features = ["fuzzy-select", "password"] }
 env_logger = "0.11.*"
+hex = "0.4"
 humantime = "2.1.0"
 libseccomp = { version = "0.3.*", optional = true }
 log = "0.4.*"
