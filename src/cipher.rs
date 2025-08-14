@@ -31,6 +31,38 @@ use bip39::Mnemonic;
 use std::sync::LazyLock;
 use std::time::{Duration,Instant};
 
+struct Salt([u8; 64]);
+
+struct Entropy([u8; 32]);
+
+impl Entropy {
+    pub fn encrypt(&self, cipher: &aes::Aes256) -> Result<Mnemonic> {
+        use aes::Aes256;
+        use aes::cipher::{Block, BlockEncrypt};
+
+        let mut entropy = self.0.to_vec();
+        let block1 = Block::<Aes256>::from_mut_slice(&mut entropy[0..16]);
+        cipher.encrypt_block(block1);
+        let block2 = Block::<Aes256>::from_mut_slice(&mut entropy[16..32]);
+        cipher.encrypt_block(block2);
+        bip39::Mnemonic::from_entropy(&entropy)
+            .context("failed to create encrypted seed")
+    }
+
+    pub fn decrypt(&self, cipher: &aes::Aes256) -> Result<Mnemonic> {
+        use aes::Aes256;
+        use aes::cipher::{Block, BlockDecrypt};
+
+        let mut entropy = self.0.to_vec();
+        let block1 = Block::<Aes256>::from_mut_slice(&mut entropy[0..16]);
+        cipher.decrypt_block(block1);
+        let block2 = Block::<Aes256>::from_mut_slice(&mut entropy[16..32]);
+        cipher.decrypt_block(block2);
+        bip39::Mnemonic::from_entropy(&entropy)
+            .context("failed to create decrypted seed")
+    }
+}
+
 // Using a constant salt is bad, but the goal is to have 256 bits input and 256 bits output with
 // only a password as extra input. It is what it is. I figure some salt is better than no salt.
 static SALT: LazyLock<&[u8]> = LazyLock::new(|| {
@@ -58,7 +90,8 @@ static SALT: LazyLock<&[u8]> = LazyLock::new(|| {
 /// If the run time has not been long enough, we increase the time cost and try again.
 pub struct Cipher {
     password: String,
-    entropy: [u8; 32],
+    entropy: Entropy,
+    salt: Salt,
     argon2_time_cost: u32,
     threads: u32,
     last_result: [u8; 32],
@@ -72,12 +105,19 @@ impl Cipher {
             let entropy_vec = key.to_entropy();
             assert!(entropy_vec.len() == 32);
             entropy.copy_from_slice(&entropy_vec);
-            entropy
+            Entropy(entropy)
+        };
+
+        let salt = {
+            let mut salt = [0; 64];
+            salt.copy_from_slice(&SALT);
+            Salt(salt)
         };
 
         Ok(Self {
             password,
             entropy,
+            salt,
             argon2_time_cost: params::ARGON2_TIME_COST_INIT,
             threads: threads.unwrap_or(params::DEFAULT_THREADS),
             last_result: [0u8; 32],
@@ -102,8 +142,8 @@ impl Cipher {
         let argon2_hash = Hasher::default()
             .algorithm(Algorithm::Argon2id)
             .hash_length(32)
-            .salt_length(SALT.len().try_into()?)
-            .custom_salt(*SALT)
+            .salt_length(self.salt.0.len().try_into()?)
+            .custom_salt(&self.salt.0)
             .iterations(self.argon2_time_cost)
             .memory_cost_kib(params::ARGON2_MEM_COST)
             .threads(self.threads)
@@ -131,31 +171,13 @@ impl Cipher {
     }
 
     fn next_encrypted(&mut self) -> Result<Mnemonic> {
-        use aes::Aes256;
-        use aes::cipher::{Block, BlockEncrypt};
-
-        let mut entropy = self.entropy.to_vec();
         let cipher = self.next_key()?;
-        let block1 = Block::<Aes256>::from_mut_slice(&mut entropy[0..16]);
-        cipher.encrypt_block(block1);
-        let block2 = Block::<Aes256>::from_mut_slice(&mut entropy[16..32]);
-        cipher.encrypt_block(block2);
-        bip39::Mnemonic::from_entropy(&entropy)
-            .context("failed to create encrypted seed")
+        self.entropy.encrypt(&cipher)
     }
 
     fn next_decrypted(&mut self) -> Result<Mnemonic> {
-        use aes::Aes256;
-        use aes::cipher::{Block, BlockDecrypt};
-
-        let mut entropy = self.entropy.to_vec();
         let cipher = self.next_key()?;
-        let block1 = Block::<Aes256>::from_mut_slice(&mut entropy[0..16]);
-        cipher.decrypt_block(block1);
-        let block2 = Block::<Aes256>::from_mut_slice(&mut entropy[16..32]);
-        cipher.decrypt_block(block2);
-        bip39::Mnemonic::from_entropy(&entropy)
-            .context("failed to create encrypted seed")
+        self.entropy.decrypt(&cipher)
     }
 
     pub fn encrypt(mut self, time_limit: Duration, print: bool) -> Result<Mnemonic> {
