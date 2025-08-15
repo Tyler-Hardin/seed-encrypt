@@ -252,6 +252,7 @@ impl Cipher {
 
         let start = Instant::now();
 
+        let hash_input = self.get_hash_input();
         let argon2_hash = Hasher::default()
             .algorithm(Algorithm::Argon2id)
             .hash_length(32)
@@ -260,7 +261,7 @@ impl Cipher {
             .iterations(self.argon2_time_cost)
             .memory_cost_kib(params::ARGON2_MEM_COST)
             .threads(self.threads)
-            .hash(self.get_hash_input().as_slice())?;
+            .hash(&hash_input)?;
 
         assert_eq!(argon2_hash.as_bytes().len(), self.last_result.len());
         self.last_result.copy_from_slice(argon2_hash.as_bytes());
