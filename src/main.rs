@@ -276,7 +276,7 @@ impl ExecutionContext {
 fn generate_mnemonic() -> Result<bip39::Mnemonic> {
     use rand::Rng;
     let mut entropy = [0u8; 32];
-    rand::thread_rng().try_fill(&mut entropy).context("failed to generate entropy")?;
+    rand::rng().fill(&mut entropy);
     Ok(bip39::Mnemonic::from_entropy(&entropy)?)
 }
 
