@@ -1,0 +1,22 @@
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: nix develop --command cargo fmt --all --
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: nix develop --command cargo clippy --all-targets --all-features -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: nixfmt
+        name: nixfmt
+        entry: nixfmt
+        language: system
+        types: [nix]
