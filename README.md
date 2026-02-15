@@ -6,9 +6,53 @@ to be able to store my key using one of the existing products (steel capsule, st
 but I really hated the idea of making such a permanent impression of such sensitive data. So
 here we are.
 
+## Installation
+
+### Using Nix (recommended)
+```bash
+# Build the project
+nix build
+
+# Run the binary
+./result/bin/seed-encrypt
+```
+
+### Development
+```bash
+# Enter development shell
+nix develop
+
+# Run tests
+cargo test
+
+# Format and lint
+cargo fmt
+cargo clippy
+```
+
+## Usage
+```
+seed-encrypt [OPTIONS]
+
+Options:
+  --mode <MODE>           encrypt, decrypt, or generate (default: encrypt)
+  --time-limit <DURATION> how long to hash (e.g., "1h", "30m") (default: 1m)
+  --threads <N>           number of threads (default: 16)
+  --private               hide seed phrase input (for encryption)
+```
+
+### Example
+```bash
+# Encrypt a seed phrase (runs for 1 hour)
+seed-encrypt --mode encrypt --time-limit 1h
+
+# Decrypt (needs same time limit and thread count used for encryption)
+seed-encrypt --mode decrypt --time-limit 2h
+```
+
 ## Implementation
-We convert the input seed prase back into pure entropy. The entropy is hashed with the password
-plus a hard coded salt. The hash is repeated until the time limit is reached. Then end result
+We convert the input seed phrase back into pure entropy. The entropy is hashed with the password
+plus a hard coded salt. The hash is repeated until the time limit is reached. The end result
 hash is used as a key to encrypt the entropy using a symmetric cipher.
 
 ## ⚠️ Caveats and warnings ⚠️
