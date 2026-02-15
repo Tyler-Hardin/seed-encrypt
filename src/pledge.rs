@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 
-#[cfg(feature="pledge")]
+#[cfg(feature = "pledge")]
 pub fn pledge() -> Result<()> {
     use libseccomp::*;
 
@@ -10,16 +10,25 @@ pub fn pledge() -> Result<()> {
 
     // Allow basic syscalls needed for process control
     let allowed_syscalls = [
-        "brk", "read", "write", "exit", "exit_group", "getrandom", "mmap",
-
+        "brk",
+        "read",
+        "write",
+        "exit",
+        "exit_group",
+        "getrandom",
+        "mmap",
         // Needed by dialoguer
-        "ioctl", "poll", "munmap", "sigaltstack", "clock_nanosleep",
-
-        "getpid", "gettid", "tgkill"
+        "ioctl",
+        "poll",
+        "munmap",
+        "sigaltstack",
+        "clock_nanosleep",
+        "getpid",
+        "gettid",
+        "tgkill",
     ];
     for syscall in allowed_syscalls.iter() {
-        let syscall = ScmpSyscall::from_name(syscall)
-            .context("failed to get syscall number")?;
+        let syscall = ScmpSyscall::from_name(syscall).context("failed to get syscall number")?;
         ctx.add_rule(ScmpAction::Allow, syscall)
             .context("failed to add seccomp rule")?;
     }

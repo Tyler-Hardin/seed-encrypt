@@ -1,5 +1,4 @@
 use clap::Parser;
-use zxcvbn;
 
 mod prelude;
 use prelude::*;
@@ -7,30 +6,30 @@ use prelude::*;
 mod cipher;
 use cipher::Cipher;
 
-#[cfg(feature="pledge")]
+#[cfg(feature = "pledge")]
 mod pledge;
 
 mod tests;
 
-#[derive(clap::ValueEnum,Clone,Debug,Eq,PartialEq)]
+#[derive(clap::ValueEnum, Clone, Debug, Eq, PartialEq)]
 enum Mode {
     Encrypt,
     Decrypt,
     Generate,
 }
 
-#[derive(clap::Parser,Debug)]
+#[derive(clap::Parser, Debug)]
 struct Args {
     #[clap(long)]
     private: bool,
 
-    #[clap(long, default_value="encrypt")]
+    #[clap(long, default_value = "encrypt")]
     mode: Mode,
 
-    #[clap(long, default_value="1m")]
+    #[clap(long, default_value = "1m")]
     time_limit: humantime::Duration,
 
-    #[clap(long, default_value="16")]
+    #[clap(long, default_value = "16")]
     threads: Option<u32>,
 }
 
@@ -43,7 +42,6 @@ fn read_seedword_list(private: bool) -> Result<bip39::Mnemonic> {
         wl.extend(language.word_list());
         wl
     };
-
 
     let mut chosen_words = vec![];
     if private {
@@ -88,7 +86,7 @@ fn parse_seed(seed: &str) -> Result<bip39::Mnemonic> {
 
 fn main() -> Result<()> {
     // Remove privileges to prevent supply chain attacks. This should be the first thing to run.
-    #[cfg(feature="pledge")]
+    #[cfg(feature = "pledge")]
     pledge::pledge()?;
 
     env_logger::builder()
@@ -102,13 +100,19 @@ fn main() -> Result<()> {
         Mode::Generate => {
             use rand::Rng;
             let mut entropy = [0u8; 32];
-            rand::thread_rng().try_fill(&mut entropy).context("failed to generate entropy")?;
+            rand::thread_rng()
+                .try_fill(&mut entropy)
+                .context("failed to generate entropy")?;
             bip39::Mnemonic::from_entropy(&entropy)?
         }
     };
 
     let num_words = mnemonic.to_string().split_whitespace().count();
-    ensure!(num_words == 24, "Seed must be 24 words. Found {} words.", num_words);
+    ensure!(
+        num_words == 24,
+        "Seed must be 24 words. Found {} words.",
+        num_words
+    );
 
     let password = dialoguer::Password::new()
         .with_prompt("Enter password")
@@ -120,7 +124,7 @@ fn main() -> Result<()> {
     let fmt_dur = |d: std::time::Duration| {
         let years = d.as_secs_f64() / 60.0 / 60.0 / 24.0 / 365.25;
         if years > 1000. {
-            return format!("{}ky", (years / 100.).round() / 10.);
+            format!("{}ky", (years / 100.).round() / 10.)
         } else {
             let d = round_duration(d, std::time::Duration::from_secs(60 * 60 * 24));
             humantime::format_duration(d).to_string()
@@ -130,8 +134,10 @@ fn main() -> Result<()> {
     let zxcvbn = zxcvbn::zxcvbn(&password, &[]).unwrap();
     log::warn!("Password strength: {}", zxcvbn.score());
     log::warn!("Password guesses to crack: {}", zxcvbn.guesses());
-    log::warn!("Password crack time with 10k cores: {}",
-        fmt_dur(*args.time_limit * (zxcvbn.guesses() / 10_000 / 10) as u32));
+    log::warn!(
+        "Password crack time with 10k cores: {}",
+        fmt_dur(*args.time_limit * (zxcvbn.guesses() / 10_000 / 10) as u32)
+    );
     log::warn!("Password suggestions: {:?}", zxcvbn.feedback());
     ensure!(zxcvbn.score() >= 3, "Password is too weak");
 
@@ -153,7 +159,7 @@ fn main() -> Result<()> {
                 println!("Seed: {}", mnemonic);
                 println!("Encrypted seed: {}", encrypted_seed);
             }
-        },
+        }
         Mode::Decrypt => {
             cipher.decrypt(*args.time_limit * 2, true)?;
         }

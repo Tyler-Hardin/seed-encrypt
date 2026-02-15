@@ -16,11 +16,16 @@
 ///   Do not change this file.
 ///
 ///!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 mod params {
-    pub const ARGON2_MEM_COST: u32         = 2 * 1024 * 1024;   // 2 GiB (units of 1KiB)
-    pub const ARGON2_TIME_COST_INIT: u32   = 10;
-    pub const DEFAULT_THREADS: u32         = 16;
+    /// Memory cost in KiB. Default is 2 GiB for security.
+    /// For testing, use a much smaller value (e.g., 64 KiB).
+    #[cfg(not(test))]
+    pub const ARGON2_MEM_COST: u32 = 2 * 1024 * 1024; // 2 GiB (units of 1KiB)
+    #[cfg(test)]
+    pub const ARGON2_MEM_COST: u32 = 64; // 64 KiB for fast tests
+
+    pub const ARGON2_TIME_COST_INIT: u32 = 10;
+    pub const DEFAULT_THREADS: u32 = 16;
 }
 
 pub const _1SEC: Duration = Duration::from_secs(1);
@@ -29,7 +34,7 @@ use crate::prelude::*;
 use bip39::Mnemonic;
 
 use std::sync::LazyLock;
-use std::time::{Duration,Instant};
+use std::time::{Duration, Instant};
 
 // Using a constant salt is bad, but the goal is to have 256 bits input and 256 bits output with
 // only a password as extra input. It is what it is. I figure some salt is better than no salt.
@@ -40,11 +45,13 @@ static SALT: LazyLock<&[u8]> = LazyLock::new(|| {
         0x4cefd807d4ff378f15805708fd4b43f6u128,
         0xf0172570c5c02c577126196871fb3584u128,
     ];
-    let nums = nums.iter().flat_map(|n| n.to_be_bytes()).collect::<Vec<u8>>();
+    let nums = nums
+        .iter()
+        .flat_map(|n| n.to_be_bytes())
+        .collect::<Vec<u8>>();
     assert_eq!(nums.iter().map(|i: &u8| *i as u64).sum::<u64>(), 7848);
     nums.leak()
 });
-
 
 /// The cipher generator. We generate keys for encrypting and decrypting the key by recursively
 /// hashing the password with Argon2 and Balloon, increasing the time cost of each until the
@@ -118,7 +125,10 @@ impl Cipher {
         assert_eq!(argon2_hash.as_bytes().len(), self.last_result.len());
         self.last_result.copy_from_slice(argon2_hash.as_bytes());
 
-        log::trace!("Argon2 hash took {:?}", round_duration(start.elapsed(), _1SEC));
+        log::trace!(
+            "Argon2 hash took {:?}",
+            round_duration(start.elapsed(), _1SEC)
+        );
         Ok(())
     }
 
@@ -137,8 +147,8 @@ impl Cipher {
     }
 
     fn next_encrypted(&mut self) -> Result<Mnemonic> {
-        use aes::Aes256;
         use aes::cipher::{Block, BlockEncrypt};
+        use aes::Aes256;
 
         let mut entropy = self.entropy.to_vec();
         let cipher = self.next_key()?;
@@ -146,13 +156,12 @@ impl Cipher {
         cipher.encrypt_block(block1);
         let block2 = Block::<Aes256>::from_mut_slice(&mut entropy[16..32]);
         cipher.encrypt_block(block2);
-        bip39::Mnemonic::from_entropy(&entropy)
-            .context("failed to create encrypted seed")
+        bip39::Mnemonic::from_entropy(&entropy).context("failed to create encrypted seed")
     }
 
     fn next_decrypted(&mut self) -> Result<Mnemonic> {
-        use aes::Aes256;
         use aes::cipher::{Block, BlockDecrypt};
+        use aes::Aes256;
 
         let mut entropy = self.entropy.to_vec();
         let cipher = self.next_key()?;
@@ -160,8 +169,7 @@ impl Cipher {
         cipher.decrypt_block(block1);
         let block2 = Block::<Aes256>::from_mut_slice(&mut entropy[16..32]);
         cipher.decrypt_block(block2);
-        bip39::Mnemonic::from_entropy(&entropy)
-            .context("failed to create encrypted seed")
+        bip39::Mnemonic::from_entropy(&entropy).context("failed to create encrypted seed")
     }
 
     pub fn encrypt(mut self, time_limit: Duration, print: bool) -> Result<Mnemonic> {
@@ -209,6 +217,52 @@ impl Cipher {
         };
 
         while start.elapsed() < time_limit {
+            let key = self.next_decrypted()?;
+            log_round(self.round);
+
+            if key == *validate {
+                return Ok(());
+            }
+        }
+        anyhow::bail!("failed to validate encrypted key")
+    }
+
+    /// Encrypt running for a fixed number of cycles (deterministic, for testing)
+    #[cfg(test)]
+    pub fn encrypt_cycles(mut self, cycles: u32, print: bool) -> Result<Mnemonic> {
+        let start = Instant::now();
+
+        let log_round = |round| {
+            if print {
+                let elapsed = start.elapsed();
+                let elapsed = round_duration(elapsed, Duration::from_secs(1));
+                let elapsed = humantime::format_duration(elapsed);
+                log::info!("Finished round {} in {}", round, elapsed);
+            }
+        };
+
+        let mut key = self.next_encrypted()?;
+        log_round(self.round);
+
+        for _ in 1..cycles {
+            key = self.next_encrypted()?;
+            log_round(self.round);
+        }
+        Ok(key)
+    }
+
+    /// Validate decryption running for a fixed number of cycles (deterministic, for testing)
+    #[cfg(test)]
+    pub fn decrypt_validate_cycles(mut self, cycles: u32, validate: &Mnemonic) -> Result<()> {
+        let start = std::time::Instant::now();
+        let log_round = |round| {
+            let elapsed = start.elapsed();
+            let elapsed = round_duration(elapsed, Duration::from_secs(1));
+            let elapsed = humantime::format_duration(elapsed);
+            log::info!("Finished round {} in {}", round, elapsed);
+        };
+
+        for _ in 0..cycles {
             let key = self.next_decrypted()?;
             log_round(self.round);
 
