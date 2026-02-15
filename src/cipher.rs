@@ -24,7 +24,11 @@ mod params {
     #[cfg(test)]
     pub const ARGON2_MEM_COST: u32 = 64; // 64 KiB for fast tests
 
+    #[cfg(not(test))]
     pub const ARGON2_TIME_COST_INIT: u32 = 10;
+    #[cfg(test)]
+    pub const ARGON2_TIME_COST_INIT: u32 = 1;
+
     pub const DEFAULT_THREADS: u32 = 16;
 }
 

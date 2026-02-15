@@ -14,7 +14,7 @@ fn init() {
 fn test_mnemonic(mnemonic: &str, password: &str) {
     let mnemonic = mnemonic.trim();
     let parsed = parse_seed(mnemonic).unwrap();
-    let time_limit = std::time::Duration::from_secs(15);
+    let time_limit = std::time::Duration::from_secs(1);
 
     let cipher = Cipher::new(&parsed, password.to_string(), Some(4)).unwrap();
     let encrypted_seed = cipher.encrypt(time_limit, true).unwrap();
@@ -50,7 +50,7 @@ fn test_deterministic_cycles() {
     let encrypted_seed = cipher.encrypt_cycles(cycles, false).unwrap();
 
     // Verify the encrypted seed is deterministic
-    let expected = "jazz sort practice invite busy clump deal situate curve calm position boring rural because health night usual crack team year horror athlete planet loan";
+    let expected = "path license current woman popular crystal swing melody region mountain alcohol year gap alter network second result stove flee gain upper logic pause acid";
     assert_eq!(
         encrypted_seed.to_string(),
         expected,
