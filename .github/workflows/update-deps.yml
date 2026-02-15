@@ -1,0 +1,48 @@
+name: Update dependencies
+
+on:
+  schedule:
+    # Run weekly on Saturday at 00:00 UTC
+    - cron: '0 0 * * 6'
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    name: Update dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Update flake.lock
+        run: nix flake update
+
+      - name: Update Cargo dependencies
+        run: nix develop --command cargo update
+
+      - name: Run tests to verify update
+        run: nix develop --command cargo test
+
+      - name: Create PR for dependency updates
+        id: create-pr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          title: "chore: update dependencies"
+          body: |
+            Automated weekly update of dependencies.
+            
+            - Updated flake inputs (Nix dependencies)
+            - Updated Cargo dependencies
+            
+            This PR was created by the [update-deps](.github/workflows/update-deps.yml) workflow.
+          branch: automated/deps-update
+          commit-message: "chore: update dependencies"
+          labels: dependencies
