@@ -98,11 +98,9 @@ fn main() -> Result<()> {
     let mnemonic = match args.mode {
         Mode::Encrypt | Mode::Decrypt => read_seedword_list(args.private)?,
         Mode::Generate => {
-            use rand::Rng;
+            use rand::RngExt;
             let mut entropy = [0u8; 32];
-            rand::thread_rng()
-                .try_fill(&mut entropy)
-                .context("failed to generate entropy")?;
+            rand::rng().fill(&mut entropy);
             bip39::Mnemonic::from_entropy(&entropy)?
         }
     };
@@ -131,7 +129,8 @@ fn main() -> Result<()> {
         }
     };
 
-    let zxcvbn = zxcvbn::zxcvbn(&password, &[]).unwrap();
+    use zxcvbn::Score;
+    let zxcvbn = zxcvbn::zxcvbn(&password, &[]);
     log::warn!("Password strength: {}", zxcvbn.score());
     log::warn!("Password guesses to crack: {}", zxcvbn.guesses());
     log::warn!(
@@ -139,7 +138,7 @@ fn main() -> Result<()> {
         fmt_dur(*args.time_limit * (zxcvbn.guesses() / 10_000 / 10) as u32)
     );
     log::warn!("Password suggestions: {:?}", zxcvbn.feedback());
-    ensure!(zxcvbn.score() >= 3, "Password is too weak");
+    ensure!(zxcvbn.score() >= Score::Three, "Password is too weak");
 
     let cipher = Cipher::new(&mnemonic, password.clone(), args.threads)?;
 
