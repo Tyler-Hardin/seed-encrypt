@@ -41,7 +41,7 @@ struct Args {
     #[clap(long, default_value = "encrypt")]
     mode: Mode,
 
-    #[clap(long, default_value = "1m")]
+    #[clap(long, default_value = "1h")]
     time_limit: humantime::Duration,
 
     #[clap(long, default_value = "16")]
@@ -134,6 +134,13 @@ async fn main() -> Result<()> {
         .try_init()?;
 
     let args = Args::parse();
+
+    // Warn if time limit is less than 1 hour (should only be used for testing)
+    if *args.time_limit < std::time::Duration::from_secs(3600) {
+        log::warn!(
+            "WARNING: Time limit is less than 1 hour. This should only be used for testing!"
+        );
+    }
 
     // Handle meta word parsing for decrypt mode
     let (mnemonic, meta_words, actual_threads, actual_time_limit) = match args.mode {
@@ -356,6 +363,13 @@ fn main() -> Result<()> {
         .try_init()?;
 
     let args = Args::parse();
+
+    // Warn if time limit is less than 1 hour (should only be used for testing)
+    if *args.time_limit < std::time::Duration::from_secs(3600) {
+        log::warn!(
+            "WARNING: Time limit is less than 1 hour. This should only be used for testing!"
+        );
+    }
 
     // Handle meta word parsing for decrypt mode
     let (mnemonic, meta_words, actual_threads, actual_time_limit) = match args.mode {

@@ -60,7 +60,7 @@ seed-encrypt [OPTIONS]
 
 Options:
   --mode <MODE>           encrypt, decrypt, or generate (default: encrypt)
-  --time-limit <DURATION> how long to hash (e.g., "1h", "30m") (default: 1m)
+  --time-limit <DURATION> how long to hash (e.g., "1h", "30m") (default: 1h)
   --threads <N>           number of threads (default: 16)
   --meta                  append 3 meta words encoding git hash, threads, and time limit
   --meta-base58           print meta info as 6-char base58 string (compact alternative to --meta)
