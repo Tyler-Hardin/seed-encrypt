@@ -152,8 +152,8 @@ impl Cipher {
     }
 
     fn next_encrypted(&mut self) -> Result<Mnemonic> {
-        use aes::cipher::{Block, BlockEncrypt};
         use aes::Aes256;
+        use aes::cipher::{Block, BlockEncrypt};
 
         let mut entropy = self.entropy.to_vec();
         let cipher = self.next_key()?;
@@ -165,8 +165,8 @@ impl Cipher {
     }
 
     fn next_decrypted(&mut self) -> Result<Mnemonic> {
-        use aes::cipher::{Block, BlockDecrypt};
         use aes::Aes256;
+        use aes::cipher::{Block, BlockDecrypt};
 
         let mut entropy = self.entropy.to_vec();
         let cipher = self.next_key()?;

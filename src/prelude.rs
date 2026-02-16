@@ -1,4 +1,4 @@
-pub(crate) use anyhow::{ensure, Context, Result};
+pub(crate) use anyhow::{Context, Result, ensure};
 
 pub use std::time::Duration;
 

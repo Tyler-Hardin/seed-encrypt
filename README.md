@@ -1,5 +1,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/Tyler-Hardin/seed-encrypt/actions/workflows/ci.yml/badge.svg)](https://github.com/Tyler-Hardin/seed-encrypt/actions/workflows/ci.yml)
+[![Rust](https://img.shields.io/badge/rust-2024-orange.svg)](https://www.rust-lang.org/)
+[![Nix Flake](https://img.shields.io/badge/Nix-Flake-7EB6D7.svg)](https://nixos.org/)
 
 ## Introduction
 This is a tool for encrypting and decrypting BIP-39 seed phrases. To my knowledge, there is
