@@ -1,3 +1,6 @@
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/Tyler-Hardin/seed-encrypt/actions/workflows/ci.yml/badge.svg)](https://github.com/Tyler-Hardin/seed-encrypt/actions/workflows/ci.yml)
+
 ## Introduction
 This is a tool for encrypting and decrypting BIP-39 seed phrases. To my knowledge, there is
 no other tool that takes a seed phrase and a password and simply returns a new seed phrase.
