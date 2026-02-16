@@ -199,13 +199,19 @@ impl Cipher {
         Ok(key)
     }
 
-    pub fn decrypt(mut self, time_limit: Duration, print: bool) -> Result<Vec<Mnemonic>> {
+    pub fn decrypt<F>(mut self, time_limit: Duration, mut callback: F) -> Result<Vec<Mnemonic>>
+    where
+        F: FnMut(&Mnemonic) -> Result<bool>,
+    {
         let start = Instant::now();
         let mut keys = vec![];
         while start.elapsed() < time_limit {
             let key = self.next_decrypted()?;
-            if print {
-                println!("Potential key: {}", key);
+            println!("Potential key: {}", key);
+            // Callback returns true if we should stop early
+            if callback(&key)? {
+                keys.push(key);
+                return Ok(keys);
             }
             keys.push(key);
         }

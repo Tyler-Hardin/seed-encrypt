@@ -21,8 +21,11 @@ jobs:
       - name: Check formatting
         run: nix develop --command cargo fmt --all -- --check
 
-      - name: Run clippy
-        run: nix develop --command cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run clippy (default features)
+        run: nix develop --command cargo clippy --all-targets -- -D warnings
+
+      - name: Run clippy (check-history feature)
+        run: nix develop --command cargo clippy --all-targets --no-default-features --features check-history -- -D warnings
 
   test:
     name: Test
@@ -35,8 +38,18 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Run tests
+      - name: Run tests (default features - pledge)
         run: nix develop --command cargo test
+
+      - name: Run tests (check-history only, no pledge)
+        run: nix develop --command cargo test --no-default-features --features check-history
+
+      - name: Run tests (no features)
+        run: nix develop --command cargo test --no-default-features
+
+      - name: Verify mutual exclusivity
+        run: |
+          nix develop --command bash -c 'cargo check --features pledge,check-history 2>&1 | grep -q "error: features"'
 
   build:
     name: Build

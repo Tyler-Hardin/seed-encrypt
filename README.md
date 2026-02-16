@@ -15,11 +15,24 @@ here we are.
 
 ### Using Nix (recommended)
 ```bash
-# Build the project
+# Build the project (default: pledge feature enabled, check-history disabled)
 nix build
 
 # Run the binary
 ./result/bin/seed-encrypt
+```
+
+### Building with Cargo
+```bash
+# Default build (pledge feature enabled, minimal dependencies)
+cargo build --release
+
+# With address history checking (adds tokio, reqwest, bitcoin dependencies)
+# Note: Must disable default features since pledge and check-history are mutually exclusive
+cargo build --release --no-default-features --features check-history
+
+# Without seccomp pledging (for non-Linux systems)
+cargo build --release --no-default-features
 ```
 
 ### Development
@@ -27,8 +40,14 @@ nix build
 # Enter development shell
 nix develop
 
-# Run tests
+# Run tests (default features - pledge enabled)
 cargo test
+
+# Run tests with check-history feature (must disable default features)
+cargo test --no-default-features --features check-history
+
+# Run tests with no features
+cargo test --no-default-features
 
 # Format and lint
 cargo fmt
@@ -44,7 +63,24 @@ Options:
   --time-limit <DURATION> how long to hash (e.g., "1h", "30m") (default: 1m)
   --threads <N>           number of threads (default: 16)
   --private               hide seed phrase input (for encryption)
+  --check-history         during decryption, check derived addresses for transaction
+                          history and exit when a used address is found
+                          (only available with "check-history" feature)
 ```
+
+### Feature Flags
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `pledge` | ✓ | Seccomp privilege reduction (Linux only) |
+| `check-history` | ✗ | Address transaction history checking (adds tokio, reqwest, bitcoin deps) |
+
+**Note:** `pledge` and `check-history` are mutually exclusive. The `check-history` feature adds network dependencies which undermine the security benefits of seccomp pledging.
+
+**Supply chain attack surface:**
+- Default build (`pledge`): minimal dependencies, no network code, seccomp sandboxing
+- With `check-history`: includes async runtime (tokio) and HTTP client (reqwest) - cannot use pledge
+- No features: minimal build without seccomp (for non-Linux systems)
 
 ### Example
 ```bash
@@ -53,6 +89,10 @@ seed-encrypt --mode encrypt --time-limit 1h
 
 # Decrypt (needs same time limit and thread count used for encryption)
 seed-encrypt --mode decrypt --time-limit 2h
+
+# Decrypt with address history checking (requires check-history feature)
+# For each potential seed, derives Bitcoin addresses and checks if they've been used
+seed-encrypt --mode decrypt --time-limit 2h --check-history
 ```
 
 ## Implementation
