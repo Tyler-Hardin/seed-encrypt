@@ -5,8 +5,8 @@ pub fn pledge() -> Result<()> {
     use libseccomp::*;
 
     // Initialize seccomp filter
-    let mut ctx = ScmpFilterContext::new_filter(ScmpAction::Log)
-        .context("failed to create seccomp context")?;
+    let mut ctx =
+        ScmpFilterContext::new(ScmpAction::Log).context("failed to create seccomp context")?;
 
     // Allow basic syscalls needed for process control
     let allowed_syscalls = [
