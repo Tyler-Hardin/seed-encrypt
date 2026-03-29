@@ -14,7 +14,7 @@ fn init() {
 fn test_mnemonic(mnemonic: &str, password: &str) {
     let mnemonic = mnemonic.trim();
     let parsed = parse_seed(mnemonic).unwrap();
-    let time_limit = std::time::Duration::from_secs(15);
+    let time_limit = std::time::Duration::from_secs(5);
 
     let cipher = Cipher::new(&parsed, password.to_string(), Some(4)).unwrap();
     let encrypted_seed = cipher.encrypt(time_limit, true).unwrap();
